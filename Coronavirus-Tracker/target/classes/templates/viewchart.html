@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="ISO-8859-1">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+ 
+
+ 
+
+<!-- <script type="text/javascript" src="https://code.jquery.com/jquery-1.12.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.5.0/Chart.min.js"></script> -->
+
+
+ <link href="CSS/MyStyle.css" rel="/stylesheet"> 
+<title>View Chart</title>
+<style>
+  body,
+  #container
+  {
+      width: 200%;
+      height: 200%;
+      margin: 0;
+      padding: 0;
+  }
+  
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="col-6">
+     <h2 th:value="${myURL}" th:text="${myURL}" id="myURL">Hello Good Morning!.</h2>  
+	<div class="card text-center m-5" id="myChart">
+	
+   <div class="card-header">
+      <h1>Corona Virus Death Report</h1>
+   </div>
+   <div class="card-body">
+      <canvas id="chart-area" width="800" height="450"></canvas>
+    </div>
+  </div>
+  <script>
+    getChartData(); //calling method
+    async function getChartData()
+    {
+    	console.log(document.URL);
+    	
+    	const queryString = window.location.search;
+    	console.log('Query String='+queryString);
+    	
+    	console.log("Entering getChartData Method...");
+    	//const apiurl="http://localhost:8082/collectChartData";
+    	let myURL=document.getElementById("myURL");
+    	const apiurl=myURL.innerHTML;
+    	const response=await fetch(apiurl);
+    	console.log(response);
+    	const ChartData=await response.json();
+    	console.log('barChartData length='+ChartData.length);
+    	countries = [];
+    	deathcount = [];
+    	//console.log(barChartData[0].country);
+    	//console.log(barChartData[0].latestTotalDeaths);
+    	for(i=0;i<ChartData.length;i++)
+    	{
+    		countries.push(ChartData[i].country);
+    		deathcount.push(ChartData[i].latestTotalDeaths);
+    	}
+    	
+    	new Chart(document.getElementById("chart-area"), 
+    	{
+    	type:  'bar',
+    	data: {
+        labels: countries,
+    	datasets: [
+    	{
+    	 label: "Death Count",
+         backgroundColor: ["#3e95cd","#8e5ea2","#3cba9f","#e8c3b9","#c45850","#CD5C5C", "#40E0D0"],
+    		data: deathcount
+    		}
+    		]
+    	},
+    		options: {
+    		legend: { display: true },
+    		title: {
+    		display: true,
+    		text: 'Death Count'
+    	},
+    							xAxes: 
+    							{
+    								title: "Country",
+    								titleFontSize: 24
+    							},
+    							yAxes: 
+    							{
+    								title: "Death in Millions",
+    								titleFontSize: 24
+    			                }
+    							
+    		}
+    	});    	
+    }  
+  </script>
+    </div>
+    <div class="col-6">
+      <div id="container"></div>
+    <script>
+    countries = [];
+	deathcount = [];
+	mapdata=[];
+	countrycodes=[];
+	// sum of all cases per country
+    var sumCases = 0;
+	var numC=0;
+	var iso=[];
+	
+    anychart.noDocumentReady(function ()
+    		{
+		$.when(
+				$.getJSON("/JSONDATA/countrycodelist.json"),
+			    $.getJSON("http://localhost:8082/collectChartData")
+			    ).done(function(countrycodedata, data) {
+				//console.log(countrycodedata[0][1].iso);
+				//console.log(data[0]);
+				console.log('pushing country codes');
+				for(j=0;j<countrycodedata.length;j++)
+				{
+			    	  countrycodes.push(countrycodedata[j]);
+				      //iso.push(countrycodedata[0][j].iso);
+				      }
+				console.log('country codes='+countrycodes);
+			    //console.log(iso);
+			    console.log('pushing death reports');
+			    for(i=0;i<data.length;i++)
+			    {
+	    	        countries.push(data[i].country);
+	    	        deathcount.push(data[i].latestTotalDeaths);
+	    	        numC = parseInt(data[i].latestTotalDeaths);
+	    	        if ((data[i + 1]) != null && (data[i].country == data[i + 1].country)) 
+	    	        {	
+	    	              sumCases = sumCases + numC;    	              
+	    	              }
+	    	        else {
+
+	    	              // add last day cases of the same country
+	    	              sumCases = sumCases + numC;    	              
+	    	              console.log('sumCases='+sumCases);
+	    	              console.log(data[i].country);
+         	    	      var isocode=data[i].country.subString(0,2).toUpperCase();
+        	    	      mapdata.push({id:isocode, value: sumCases, title: data[i].country });
+	    	    	    	  
+	    	    	            
+	    	    	
+	                     /************************************************
+	                      var countrycode=data[i].country.substring(0,2).toUpperCase();
+	    	    	      mapdata.push({id:countrycode, value: sumCases, title: data[i].country }); 
+	                     *************************************************/
+	    	              
+	    	              
+	    	              console.log("mapdata="+mapdata);
+	                      
+	    	              // reset the variables to start over
+	    	              sumCases = 0; 
+	    	              }
+	    	        
+			    }
+			    // connect the data with the map
+		        var chart = anychart.map(mapdata);
+		        chart.geoData(anychart.maps.world);
+
+		        // specify the chart type and set the series 
+		        var series = chart.choropleth(mapdata);
+		        //console.log(mapdata);
+		        // set the chart title
+		        chart.title("COVID-19 Global Death Cases");
+
+		        // color scale ranges
+		        /*ocs = anychart.scales.ordinalColor([
+		          { less: 99 },
+		          { from: 100, to: 999 },
+		          { from: 1000, to: 9999 },
+		          { from: 10000, to: 29999 },
+		          { from: 30000, to: 39000 },
+		          { from: 40000, to: 59000 },
+		          { from: 60000, to: 99999 },
+		          { greater: 100000 }
+		        ]);*/
+		        
+		        ocs = anychart.scales.ordinalColor([
+		            { less: 99 },
+		            { from: 100, to: 999 },
+		            { from: 1000, to: 9999 },
+		            { from: 10000, to: 29999 },
+		            { from: 30000, to: 39000 },
+		            { from: 40000, to: 59000 },
+		            { from: 60000, to: 99999 },
+		            { greater: 100000 }
+		            ]);
+		        
+		        // set scale colors[original colors]
+		        //ocs.colors(["rgb(252,245,245)", "rgb(241,219,216)", "rgb(229,190,185)", "rgb(211,152,145)", "rgb(192,117,109)", "rgb(178,93,86)", "rgb(152,50,48)", "rgb(150,33,31)"]);
+
+		        ocs.colors(["rgb(64, 255, 0)", "rgb(128, 255, 0)", "rgb(191, 255, 0)", "rgb(255, 255, 0)", "rgb(255, 191, 0)", "rgb(255, 128, 0)", "rgb(255, 64, 0)", "rgb(255, 0, 0)"]);
+		        // tell the series what to use as a colorRange (colorScale)
+		        series.colorScale(ocs);
+
+		        // set the container id
+		        chart.container('container');
+		        
+		        // draw the chart
+		        chart.draw();
+		        });
+		});
+	</script>
+    </div>
+  </div>	
+</body>
+</html>
